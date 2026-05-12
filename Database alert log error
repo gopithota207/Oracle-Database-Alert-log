@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Define variables
+ORACLE_SID=ORCL
+ORACLE_HOME=/u01/app/oracle/product/home
+SUBJECT="DB ORA ERROS IN ALERT LOG"
+LOG_FILE="/home/oracle/ORA.log"
+
+
+# Load Oracle environment variables
+export ORACLE_HOME
+export PATH=$ORACLE_HOME/bin:$PATH
+export ORACLE_SID
+
+OUTPUT_FILE="/home/oracle/ORA.log"
+
+# Email settings
+PERSONTONOTIFY="gmail"
+IMSSUPPORT="gmail"
+
+# Run SQL query and capture output
+sqlplus -s / as sysdba <<EOF > "$OUTPUT_FILE"
+SET PAGESIZE 50000
+SET LINESIZE 200
+SET FEEDBACK OFF
+SET TRIMSPOOL ON
+SET HEADING ON
+
+SELECT TO_CHAR(ORIGINATING_TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS TZR') AS log_time,
+       MESSAGE_TEXT
+FROM v\$diag_alert_ext
+WHERE ORIGINATING_TIMESTAMP >= SYSTIMESTAMP - INTERVAL '480' MINUTE
+  AND MESSAGE_TEXT LIKE 'ORA-%'
+ORDER BY ORIGINATING_TIMESTAMP DESC;
+EXIT;
+EOF
+# Check if there were any errors and set the body accordingly
+if [ -s "$OUTPUT_FILE" ]; then
+    BODY="Please find the attached report for ORCL ORA errors."
+else
+    BODY="No errors found as of now in ORCL ALERT LOG."
+fi
+
+# Send email with the report attached (if there are errors)
+if [ -s "$OUTPUT_FILE" ]; then
+    echo "$BODY" | mailx -r noreply@gmail.com -s "$SUBJECT" -a "$OUTPUT_FILE" $IMSSUPPORT $PERSONTONOTIFY
+else
+    echo "$BODY" | mailx -r noreply@gmail.com -s "$SUBJECT" $IMSSUPPORT $PERSONTONOTIFY
+fi
+
+# Log the output
+echo "$(date): Email sent to $PERSONTONOTIFY" > "$LOG_FILE"
