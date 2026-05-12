@@ -25,6 +25,3 @@ If ORA errors are detected within the configured time interval, the script sends
 ### Linux Package
 Install `mailx` package.
 
-For Oracle Linux / RHEL:
-```bash
-yum install mailx -y
